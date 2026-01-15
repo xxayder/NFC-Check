@@ -1,0 +1,7 @@
+[build]
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/t/*"
+  to = "/.netlify/functions/tagRedirect"
+  status = 200
