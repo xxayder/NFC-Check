@@ -34,8 +34,13 @@ export async function handler(event) {
       headers: { Location: result.rows[0].glide_deep_link },
     };
   } catch (err) {
-    return { statusCode: 500, body: "Server error" };
-  } finally {
+  console.error(err);
+  return {
+    statusCode: 500,
+    body: "Server error",
+  };
+}
+ finally {
     await client.end();
   }
 }
