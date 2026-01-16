@@ -1,6 +1,6 @@
-import { Client } from "pg";
+const { Client } = require("pg");
 
-export async function handler(event) {
+exports.handler = async function (event) {
   // Expected path: /t/<tagId>
   const parts = event.path.split("/").filter(Boolean);
   const tagIdRaw = parts[parts.length - 1] || "";
@@ -21,7 +21,7 @@ export async function handler(event) {
   try {
     await client.connect();
 
-    // Increment visit count and fetch deep link in one atomic query
+    // Increment visit count and return deep link atomically
     const result = await client.query(
       `UPDATE nfc_tags
        SET visit_count = COALESCE(visit_count, 0) + 1,
@@ -35,7 +35,7 @@ export async function handler(event) {
     if (result.rows.length === 0) {
       return {
         statusCode: 404,
-        body: \`Invalid or unregistered tag: ${tagId}\`,
+        body: `Invalid or unregistered tag: ${tagId}`,
       };
     }
 
@@ -54,4 +54,4 @@ export async function handler(event) {
   } finally {
     await client.end();
   }
-}
+};
