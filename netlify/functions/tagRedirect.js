@@ -15,57 +15,47 @@ exports.handler = async function (event) {
   try {
     await client.connect();
 
-    // Record unique daily scan
-    await client.query(
+    // Try to insert today's scan (unique per day)
+    const insertResult = await client.query(
       `INSERT INTO nfc_scans (tag_id, scan_date)
        VALUES ($1, CURRENT_DATE)
-       ON CONFLICT DO NOTHING`,
+       ON CONFLICT DO NOTHING
+       RETURNING 1`,
       [tagId]
     );
 
-    // Increment visit_count only if today's scan exists
-    const result = await client.query(
-      `UPDATE nfc_tags
-       SET visit_count = COALESCE(visit_count, 0) + 1,
-           last_visit_at = NOW()
-       WHERE tag_id = $1
-         AND status = 'active'
-         AND EXISTS (
-           SELECT 1 FROM nfc_scans
-           WHERE tag_id = $1
-             AND scan_date = CURRENT_DATE
-         )
-       RETURNING glide_deep_link`,
-      [tagId]
-    );
-
-    // If not incremented today, still fetch deep link
-    if (result.rows.length === 0) {
-      const fallback = await client.query(
-        `SELECT glide_deep_link
-         FROM nfc_tags
+    // Only increment if this is the first scan today
+    if (insertResult.rowCount === 1) {
+      await client.query(
+        `UPDATE nfc_tags
+         SET visit_count = COALESCE(visit_count, 0) + 1,
+             last_visit_at = NOW()
          WHERE tag_id = $1
-           AND status = 'active'
-         LIMIT 1`,
+           AND status = 'active'`,
         [tagId]
       );
+    }
 
-      if (fallback.rows.length === 0) {
-        return {
-          statusCode: 404,
-          body: `Invalid or unregistered tag: ${tagId}`,
-        };
-      }
+    // Always fetch deep link
+    const linkResult = await client.query(
+      `SELECT glide_deep_link
+       FROM nfc_tags
+       WHERE tag_id = $1
+         AND status = 'active'
+       LIMIT 1`,
+      [tagId]
+    );
 
+    if (linkResult.rows.length === 0) {
       return {
-        statusCode: 302,
-        headers: { Location: fallback.rows[0].glide_deep_link },
+        statusCode: 404,
+        body: `Invalid or unregistered tag: ${tagId}`,
       };
     }
 
     return {
       statusCode: 302,
-      headers: { Location: result.rows[0].glide_deep_link },
+      headers: { Location: linkResult.rows[0].glide_deep_link },
     };
   } catch (err) {
     console.error(err);
