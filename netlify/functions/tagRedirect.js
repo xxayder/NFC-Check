@@ -8,39 +8,50 @@ export async function handler(event) {
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    return { statusCode: 500, body: "Missing DATABASE_URL env var" };
+    return {
+      statusCode: 500,
+      body: "Missing DATABASE_URL env var",
+    };
   }
 
-  const client = new Client({ connectionString: databaseUrl });
+  const client = new Client({
+    connectionString: databaseUrl,
+  });
 
   try {
     await client.connect();
 
+    // Increment visit count and fetch deep link in one atomic query
     const result = await client.query(
-      `SELECT glide_deep_link
-       FROM nfc_tags
+      `UPDATE nfc_tags
+       SET visit_count = COALESCE(visit_count, 0) + 1,
+           last_visit_at = NOW()
        WHERE tag_id = $1
-       AND status = 'active'
-       LIMIT 1`,
+         AND status = 'active'
+       RETURNING glide_deep_link`,
       [tagId]
     );
 
     if (result.rows.length === 0) {
-      return { statusCode: 404, body: `Invalid or unregistered tag: ${tagId}` };
+      return {
+        statusCode: 404,
+        body: \`Invalid or unregistered tag: ${tagId}\`,
+      };
     }
 
     return {
       statusCode: 302,
-      headers: { Location: result.rows[0].glide_deep_link },
+      headers: {
+        Location: result.rows[0].glide_deep_link,
+      },
     };
   } catch (err) {
-  console.error(err);
-  return {
-    statusCode: 500,
-    body: "Server error",
-  };
-}
- finally {
+    console.error(err);
+    return {
+      statusCode: 500,
+      body: "Server error",
+    };
+  } finally {
     await client.end();
   }
 }
