@@ -47,7 +47,7 @@ exports.handler = async function (event) {
         total_spent: (summary.total_cents / 100).toFixed(2),
         avg_transaction: (Number(summary.avg_cents) / 100).toFixed(2),
         monthly: monthlyRes.rows.map(r => ({
-          month: r.month,
+          month: String(r.month).slice(0, 10),
           total_spent: (r.total_cents / 100).toFixed(2)
         }))
       })
