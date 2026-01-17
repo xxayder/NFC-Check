@@ -90,6 +90,15 @@ exports.handler = async function (event) {
       [businessId]
     );
 
+    const projRes = await client.query(
+      `SELECT
+        COALESCE(SUM(amount_cents),0)::int AS last_30d_cents
+      FROM nfc_transactions
+      WHERE business_id = $1
+        AND occurred_at >= NOW() - INTERVAL '30 days'`,
+      [businessId]
+);
+
     const summary = summaryRes.rows[0];
 
     return {
@@ -134,7 +143,11 @@ exports.handler = async function (event) {
           total_spent: (r.total_cents / 100).toFixed(2),
           tx_count: r.tx_count,
           avg_tx: (Number(r.avg_cents) / 100).toFixed(2)
-        }))
+        })),
+        projection_next_30d: (
+          (projRes.rows[0].last_30d_cents / 30) / 100 * 30
+        ).toFixed(2),
+        avg_daily_last_30d: ((projRes.rows[0].last_30d_cents / 30) / 100).toFixed(2),
       })
     };
   } catch (e) {
