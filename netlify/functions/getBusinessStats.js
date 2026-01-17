@@ -97,8 +97,14 @@ exports.handler = async function (event) {
       WHERE business_id = $1
         AND occurred_at >= NOW() - INTERVAL '30 days'`,
       [businessId]
-);
-
+    );
+    const activeDaysRes = await client.query(
+      `SELECT COUNT(DISTINCT DATE(occurred_at))::int AS active_days
+      FROM nfc_transactions
+      WHERE business_id = $1
+        AND occurred_at >= NOW() - INTERVAL '30 days'`,
+      [businessId]
+    );
     const summary = summaryRes.rows[0];
 
     return {
