@@ -27,7 +27,7 @@ exports.handler = async function (event) {
 
     const monthlyRes = await client.query(
       `SELECT
-         DATE_TRUNC('month', occurred_at)::date AS month,
+         TO_CHAR(DATE_TRUNC('month', occurred_at), 'YYYY-MM-01') AS month,
          SUM(amount_cents)::int AS total_cents
        FROM nfc_transactions
        WHERE business_id = $1
