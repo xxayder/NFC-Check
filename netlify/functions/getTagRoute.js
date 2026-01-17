@@ -37,30 +37,32 @@ exports.handler = async function (event) {
     await client.connect();
 
     const res = await client.query(
-      `SELECT tag_id, business_id, business_public_url
-       FROM nfc_tags
-       WHERE tag_id = $1
-         AND status = 'active'
-       LIMIT 1`,
-      [tagId]
-    );
+        `SELECT tag_id, business_id, business_public_url
+        FROM nfc_tags
+        WHERE LOWER(tag_id) = LOWER($1)
+            AND status = 'active'
+        LIMIT 1`,
+        [tagId]
+        );
 
     if (res.rows.length === 0) {
-      return { statusCode: 404, headers, body: JSON.stringify({ error: "Invalid or inactive tag" }) };
-    }
+        return { statusCode: 404, headers, body: JSON.stringify({ error: "Invalid or inactive tag" }) };
+        }
 
     const row = res.rows[0];
-    const glide_deep_link = template.split("{ROWID}").join(tagId);
+
+        // IMPORTANT: build using the canonical stored tag_id (correct case)
+        const glide_deep_link = template.split("{ROWID}").join(row.tag_id);
 
     return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        tag_id: row.tag_id,
-        business_id: row.business_id || "",
-        business_public_url: row.business_public_url || "",
-        glide_deep_link,
-      }),
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+            tag_id: row.tag_id,
+            business_id: row.business_id || "",
+            business_public_url: row.business_public_url || "",
+            glide_deep_link,
+        }),
     };
   } catch (e) {
     console.error(e);
