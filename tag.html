@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NFC Check</title>
+  <style>
+    body { font-family: system-ui, Arial; margin: 0; padding: 24px; }
+    .card { max-width: 520px; margin: 0 auto; border: 1px solid #ddd; border-radius: 12px; padding: 18px; }
+    .muted { color: #666; font-size: 14px; }
+    a, button { display: block; width: 100%; padding: 12px; border-radius: 10px; text-align: center; text-decoration: none; margin-top: 10px; }
+    a { border: 1px solid #111; color: #111; }
+    button { border: 0; background: #111; color: #fff; cursor: pointer; }
+    #bizEntryWrap { display: none; margin-top: 14px; }
+    #logo { font-weight: 800; font-size: 18px; user-select: none; cursor: pointer; }
+    .warn { color: #a00; font-size: 13px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="logo">NFC CHECK</div>
+    <div class="muted">Tag: <span id="tagText">...</span></div>
+
+    <div style="margin-top:12px;">
+      <div class="muted">Customer view (rewards/progress later).</div>
+      <a id="publicLink" href="#" target="_blank" rel="noopener">Visit Business</a>
+      <div id="publicWarn" class="warn" style="display:none;">Business link not set.</div>
+    </div>
+
+    <div id="bizEntryWrap">
+      <div class="muted">Business entry</div>
+      <button id="bizEntryBtn">Open Dashboard</button>
+      <div class="muted" style="margin-top:8px;">(Requires business email login in Glide if not already signed in.)</div>
+    </div>
+
+    <div id="status" class="muted" style="margin-top:12px;"></div>
+  </div>
+
+  <script>
+    // Extract tagId from /t/<tagId>
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    const tagId = (parts[1] || "").trim().toLowerCase(); // expected ["t","<tag>"]
+    document.getElementById("tagText").textContent = tagId || "(missing)";
+
+    const statusEl = document.getElementById("status");
+    const publicLinkEl = document.getElementById("publicLink");
+    const publicWarnEl = document.getElementById("publicWarn");
+    const bizWrap = document.getElementById("bizEntryWrap");
+    const bizBtn = document.getElementById("bizEntryBtn");
+
+    let glideDeepLink = "";
+
+    async function loadRoute() {
+      if (!tagId) {
+        statusEl.textContent = "Invalid URL (missing tag id).";
+        return;
+      }
+      statusEl.textContent = "Loading...";
+      const url = `/.netlify/functions/getTagRoute?tag_id=${encodeURIComponent(tagId)}&ts=${Date.now()}`;
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        statusEl.textContent = "Tag not found / inactive.";
+        publicLinkEl.style.display = "none";
+        return;
+      }
+
+      const data = await res.json();
+      glideDeepLink = data.glide_deep_link || "";
+
+      const pub = data.business_public_url || "";
+      if (pub) {
+        publicLinkEl.href = pub;
+        publicWarnEl.style.display = "none";
+      } else {
+        publicLinkEl.style.display = "none";
+        publicWarnEl.style.display = "block";
+      }
+
+      statusEl.textContent = "";
+    }
+
+    // Hidden reveal: 7 taps on logo within 6 seconds
+    let taps = 0;
+    let tapTimer = null;
+
+    document.getElementById("logo").addEventListener("click", () => {
+      taps++;
+      if (!tapTimer) {
+        tapTimer = setTimeout(() => {
+          taps = 0;
+          tapTimer = null;
+        }, 6000);
+      }
+      if (taps >= 3) {
+        taps = 0;
+        clearTimeout(tapTimer);
+        tapTimer = null;
+
+        bizWrap.style.display = "block";
+        sessionStorage.setItem("bizEntryUnlocked", "1");
+      }
+    });
+
+    // Persist unlock for this browser session
+    if (sessionStorage.getItem("bizEntryUnlocked") === "1") {
+      bizWrap.style.display = "block";
+    }
+
+    bizBtn.addEventListener("click", () => {
+      if (!glideDeepLink) return;
+      window.location.href = glideDeepLink;
+    });
+
+    loadRoute();
+  </script>
+</body>
+</html>

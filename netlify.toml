@@ -1,7 +1,7 @@
-[build]
-  functions = "netlify/functions"
+[functions]
+  directory = "netlify/functions"
 
 [[redirects]]
   from = "/t/*"
-  to = "/.netlify/functions/tagRedirect"
+  to = "/tag.html"
   status = 200
