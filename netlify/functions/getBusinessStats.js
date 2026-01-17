@@ -150,10 +150,14 @@ exports.handler = async function (event) {
           tx_count: r.tx_count,
           avg_tx: (Number(r.avg_cents) / 100).toFixed(2)
         })),
-        projection_next_30d: (
-          (projRes.rows[0].last_30d_cents / 30) / 100 * 30
+        avg_daily_last_30d: (
+          (projRes.rows[0].last_30d_cents / Math.max(activeDaysRes.rows[0].active_days, 1)) / 100
         ).toFixed(2),
-        avg_daily_last_30d: ((projRes.rows[0].last_30d_cents / 30) / 100).toFixed(2),
+
+        projection_next_30d: (
+          ((projRes.rows[0].last_30d_cents / Math.max(activeDaysRes.rows[0].active_days, 1)) / 100) * 30
+        ).toFixed(2),
+        active_days_last_30d: activeDaysRes.rows[0].active_days,
       })
     };
   } catch (e) {
