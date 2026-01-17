@@ -44,9 +44,14 @@ exports.handler = async function (event) {
        VALUES ($1, $2, $3)`,
       [business_id, tag_id, Math.round(amount_cents)]
     );
-    return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ 
-      success: true,
-      receive: { business_id, tag_id, amount_cents: Math.round(amount_cents)} }) };
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: JSON.stringify({
+        success: true,
+        received: { business_id, tag_id, amount_cents: Math.round(amount_cents) }
+      })
+    };
   } catch (e) {
     console.error(e);
     return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: "Server error" }) };
