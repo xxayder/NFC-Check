@@ -9,28 +9,35 @@ const headers = {
 };
 
 exports.handler = async function (event) {
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "ok" };
-  }
-  if (event.httpMethod !== "GET") {
+  if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "ok" };
+  if (event.httpMethod !== "GET")
     return { statusCode: 405, headers, body: JSON.stringify({ error: "Method Not Allowed" }) };
+
+  // IMPORTANT: Row IDs are case-sensitive. DO NOT lowercase.
+  const tagId = (event.queryStringParameters?.tag_id || "").toString().trim();
+  if (!tagId) return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing tag_id" }) };
+
+  const databaseUrl = (process.env.DATABASE_URL || "").trim();
+  if (!databaseUrl) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: "Missing DATABASE_URL env var" }) };
   }
 
-  const tagId = (event.queryStringParameters?.tag_id || "").toString().trim().toLowerCase();
-  if (!tagId) {
-    return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing tag_id" }) };
+  const template = (process.env.GLIDE_DEEPLINK_TEMPLATE || "").trim();
+  if (!template.includes("{ROWID}")) {
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: "Missing/invalid GLIDE_DEEPLINK_TEMPLATE (must include {ROWID})" }),
+    };
   }
 
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  const client = new Client({ connectionString: databaseUrl });
 
   try {
     await client.connect();
 
     const res = await client.query(
-      `SELECT
-         tag_id,
-         business_public_url,
-         glide_deep_link
+      `SELECT tag_id, business_id, business_public_url
        FROM nfc_tags
        WHERE tag_id = $1
          AND status = 'active'
@@ -42,7 +49,19 @@ exports.handler = async function (event) {
       return { statusCode: 404, headers, body: JSON.stringify({ error: "Invalid or inactive tag" }) };
     }
 
-    return { statusCode: 200, headers, body: JSON.stringify(res.rows[0]) };
+    const row = res.rows[0];
+    const glide_deep_link = template.split("{ROWID}").join(tagId);
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        tag_id: row.tag_id,
+        business_id: row.business_id || "",
+        business_public_url: row.business_public_url || "",
+        glide_deep_link,
+      }),
+    };
   } catch (e) {
     console.error(e);
     return { statusCode: 500, headers, body: JSON.stringify({ error: "Server error" }) };
