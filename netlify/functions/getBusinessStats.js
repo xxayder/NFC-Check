@@ -28,7 +28,9 @@ exports.handler = async function (event) {
     const monthlyRes = await client.query(
       `SELECT
          TO_CHAR(DATE_TRUNC('month', occurred_at), 'YYYY-MM-01') AS month,
-         SUM(amount_cents)::int AS total_cents
+         SUM(amount_cents)::int AS total_cents,
+         COUNT(*)::int AS tx_count,
+         AVG(amount_cents)::numeric(12,2) AS avg_cents
        FROM nfc_transactions
        WHERE business_id = $1
        GROUP BY month
@@ -37,52 +39,56 @@ exports.handler = async function (event) {
     );
 
     const dailyRes = await client.query(
-  `SELECT
-     TO_CHAR(DATE_TRUNC('day', occurred_at), 'YYYY-MM-DD') AS day,
-     SUM(amount_cents)::int AS total_cents,
-     COUNT(*)::int AS tx_count
-   FROM nfc_transactions
-   WHERE business_id = $1
-   GROUP BY day
-   ORDER BY day`,
-  [businessId]
-);
+      `SELECT
+         TO_CHAR(DATE_TRUNC('day', occurred_at), 'YYYY-MM-DD') AS day,
+         SUM(amount_cents)::int AS total_cents,
+         COUNT(*)::int AS tx_count,
+         AVG(amount_cents)::numeric(12,2) AS avg_cents
+       FROM nfc_transactions
+       WHERE business_id = $1
+       GROUP BY day
+       ORDER BY day`,
+      [businessId]
+    );
 
     const weeklyRes = await client.query(
-  `SELECT
-     TO_CHAR(DATE_TRUNC('week', occurred_at), 'YYYY-MM-DD') AS week_start,
-     SUM(amount_cents)::int AS total_cents,
-     COUNT(*)::int AS tx_count
-   FROM nfc_transactions
-   WHERE business_id = $1
-   GROUP BY week_start
-   ORDER BY week_start`,
-  [businessId]
-);
+      `SELECT
+         TO_CHAR(DATE_TRUNC('week', occurred_at), 'YYYY-MM-DD') AS week_start,
+         SUM(amount_cents)::int AS total_cents,
+         COUNT(*)::int AS tx_count,
+         AVG(amount_cents)::numeric(12,2) AS avg_cents
+       FROM nfc_transactions
+       WHERE business_id = $1
+       GROUP BY week_start
+       ORDER BY week_start`,
+      [businessId]
+    );
 
     const quarterlyRes = await client.query(
-  `SELECT
-     TO_CHAR(DATE_TRUNC('quarter', occurred_at), 'YYYY-"Q"Q') AS quarter,
-     SUM(amount_cents)::int AS total_cents,
-     COUNT(*)::int AS tx_count
-   FROM nfc_transactions
-   WHERE business_id = $1
-   GROUP BY quarter
-   ORDER BY quarter`,
-  [businessId]
-);
+      `SELECT
+         TO_CHAR(DATE_TRUNC('quarter', occurred_at), 'YYYY-"Q"Q') AS quarter,
+         SUM(amount_cents)::int AS total_cents,
+         COUNT(*)::int AS tx_count,
+         AVG(amount_cents)::numeric(12,2) AS avg_cents
+       FROM nfc_transactions
+       WHERE business_id = $1
+       GROUP BY quarter
+       ORDER BY quarter`,
+      [businessId]
+    );
 
     const yearlyRes = await client.query(
-  `SELECT
-     TO_CHAR(DATE_TRUNC('year', occurred_at), 'YYYY') AS year,
-     SUM(amount_cents)::int AS total_cents,
-     COUNT(*)::int AS tx_count
-   FROM nfc_transactions
-   WHERE business_id = $1
-   GROUP BY year
-   ORDER BY year`,
-  [businessId]
-);
+      `SELECT
+         TO_CHAR(DATE_TRUNC('year', occurred_at), 'YYYY') AS year,
+         SUM(amount_cents)::int AS total_cents,
+         COUNT(*)::int AS tx_count,
+         AVG(amount_cents)::numeric(12,2) AS avg_cents
+       FROM nfc_transactions
+       WHERE business_id = $1
+       GROUP BY year
+       ORDER BY year`,
+      [businessId]
+    );
 
     const summary = summaryRes.rows[0];
 
@@ -94,31 +100,41 @@ exports.handler = async function (event) {
         total_transactions: summary.total_transactions,
         total_spent: (summary.total_cents / 100).toFixed(2),
         avg_transaction: (Number(summary.avg_cents) / 100).toFixed(2),
+
         monthly: monthlyRes.rows.map(r => ({
-          month: String(r.month).slice(0, 10),
-          total_spent: (r.total_cents / 100).toFixed(2)
+          month: r.month, // already 'YYYY-MM-01'
+          total_spent: (r.total_cents / 100).toFixed(2),
+          tx_count: r.tx_count,
+          avg_tx: (Number(r.avg_cents) / 100).toFixed(2)
         })),
+
         daily: dailyRes.rows.map(r => ({
           day: r.day,
           total_spent: (r.total_cents / 100).toFixed(2),
-          tx_count: r.tx_count
+          tx_count: r.tx_count,
+          avg_tx: (Number(r.avg_cents) / 100).toFixed(2)
         })),
+
         weekly: weeklyRes.rows.map(r => ({
           week_start: r.week_start,
           total_spent: (r.total_cents / 100).toFixed(2),
-          tx_count: r.tx_count
+          tx_count: r.tx_count,
+          avg_tx: (Number(r.avg_cents) / 100).toFixed(2)
         })),
+
         quarterly: quarterlyRes.rows.map(r => ({
           quarter: r.quarter,
           total_spent: (r.total_cents / 100).toFixed(2),
-          tx_count: r.tx_count
+          tx_count: r.tx_count,
+          avg_tx: (Number(r.avg_cents) / 100).toFixed(2)
         })),
+
         yearly: yearlyRes.rows.map(r => ({
           year: r.year,
           total_spent: (r.total_cents / 100).toFixed(2),
-          tx_count: r.tx_count
-        })),
-
+          tx_count: r.tx_count,
+          avg_tx: (Number(r.avg_cents) / 100).toFixed(2)
+        }))
       })
     };
   } catch (e) {
