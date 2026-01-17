@@ -14,6 +14,15 @@
     #bizEntryWrap { display: none; margin-top: 14px; }
     #logo { font-weight: 800; font-size: 18px; user-select: none; cursor: pointer; }
     .warn { color: #a00; font-size: 13px; margin-top: 10px; }
+    #unlockHotspot{
+      position: fixed;
+      right: 10px;
+      bottom: 10px;
+      width: 56px;
+      height: 56px;
+      opacity: 0; /* invisible */
+      z-index: 9999;
+    }
   </style>
 </head>
 <body>
@@ -34,6 +43,8 @@
     </div>
 
     <div id="status" class="muted" style="margin-top:12px;"></div>
+
+    <div id="unlockHotspot" aria-label="unlock" title=""></div>
   </div>
 
   <script>
@@ -80,19 +91,19 @@
       statusEl.textContent = "";
     }
 
-    // Hidden reveal: 7 taps on logo within 6 seconds
+    // Hidden reveal: 2 taps bottom-right within 2 seconds
     let taps = 0;
     let tapTimer = null;
 
-    document.getElementById("logo").addEventListener("click", () => {
+    document.getElementById("unlockHotspot").addEventListener("click", () => {
       taps++;
       if (!tapTimer) {
         tapTimer = setTimeout(() => {
           taps = 0;
           tapTimer = null;
-        }, 6000);
+        }, 2000);
       }
-      if (taps >= 3) {
+      if (taps >= 2) {
         taps = 0;
         clearTimeout(tapTimer);
         tapTimer = null;
@@ -102,13 +113,17 @@
       }
     });
 
+
     // Persist unlock for this browser session
     if (sessionStorage.getItem("bizEntryUnlocked") === "1") {
       bizWrap.style.display = "block";
     }
 
     bizBtn.addEventListener("click", () => {
-      if (!glideDeepLink) return;
+      if (!glideDeepLink) {
+        statusEl.textContent = "Business entry not ready (route lookup failed).";
+        return;
+      }
       window.location.href = glideDeepLink;
     });
 
