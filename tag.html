@@ -77,7 +77,7 @@
       }
 
       const data = await res.json();
-      glideDeepLink = data.glide_deep_link || "";
+      glideDeepLink = data.glide_deep_link || "".trim();
 
       const pub = data.business_public_url || "";
       if (pub) {
@@ -109,13 +109,13 @@
         tapTimer = null;
 
         bizWrap.style.display = "block";
-        sessionStorage.setItem("bizEntryUnlocked", "1");
+        document.cookie = "bizEntryUnlocked=1; max-age=86400; path=/; samesite=lax";
       }
     });
 
 
     // Persist unlock for this browser session
-    if (sessionStorage.getItem("bizEntryUnlocked") === "1") {
+    if (document.cookie.includes("bizEntryUnlocked=1")) {
       bizWrap.style.display = "block";
     }
 
