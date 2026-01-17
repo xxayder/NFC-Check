@@ -36,6 +36,54 @@ exports.handler = async function (event) {
       [businessId]
     );
 
+    const dailyRes = await client.query(
+  `SELECT
+     TO_CHAR(DATE_TRUNC('day', occurred_at), 'YYYY-MM-DD') AS day,
+     SUM(amount_cents)::int AS total_cents,
+     COUNT(*)::int AS tx_count
+   FROM nfc_transactions
+   WHERE business_id = $1
+   GROUP BY day
+   ORDER BY day`,
+  [businessId]
+);
+
+    const weeklyRes = await client.query(
+  `SELECT
+     TO_CHAR(DATE_TRUNC('week', occurred_at), 'YYYY-MM-DD') AS week_start,
+     SUM(amount_cents)::int AS total_cents,
+     COUNT(*)::int AS tx_count
+   FROM nfc_transactions
+   WHERE business_id = $1
+   GROUP BY week_start
+   ORDER BY week_start`,
+  [businessId]
+);
+
+    const quarterlyRes = await client.query(
+  `SELECT
+     TO_CHAR(DATE_TRUNC('quarter', occurred_at), 'YYYY-"Q"Q') AS quarter,
+     SUM(amount_cents)::int AS total_cents,
+     COUNT(*)::int AS tx_count
+   FROM nfc_transactions
+   WHERE business_id = $1
+   GROUP BY quarter
+   ORDER BY quarter`,
+  [businessId]
+);
+
+    const yearlyRes = await client.query(
+  `SELECT
+     TO_CHAR(DATE_TRUNC('year', occurred_at), 'YYYY') AS year,
+     SUM(amount_cents)::int AS total_cents,
+     COUNT(*)::int AS tx_count
+   FROM nfc_transactions
+   WHERE business_id = $1
+   GROUP BY year
+   ORDER BY year`,
+  [businessId]
+);
+
     const summary = summaryRes.rows[0];
 
     return {
@@ -49,7 +97,28 @@ exports.handler = async function (event) {
         monthly: monthlyRes.rows.map(r => ({
           month: String(r.month).slice(0, 10),
           total_spent: (r.total_cents / 100).toFixed(2)
-        }))
+        })),
+        daily: dailyRes.rows.map(r => ({
+          day: r.day,
+          total_spent: (r.total_cents / 100).toFixed(2),
+          tx_count: r.tx_count
+        })),
+        weekly: weeklyRes.rows.map(r => ({
+          week_start: r.week_start,
+          total_spent: (r.total_cents / 100).toFixed(2),
+          tx_count: r.tx_count
+        })),
+        quarterly: quarterlyRes.rows.map(r => ({
+          quarter: r.quarter,
+          total_spent: (r.total_cents / 100).toFixed(2),
+          tx_count: r.tx_count
+        })),
+        yearly: yearlyRes.rows.map(r => ({
+          year: r.year,
+          total_spent: (r.total_cents / 100).toFixed(2),
+          tx_count: r.tx_count
+        })),
+
       })
     };
   } catch (e) {
